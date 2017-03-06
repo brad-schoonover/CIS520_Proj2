@@ -71,32 +71,61 @@ syscall_handler (struct intr_frame *f)
 		case SYS_CREATE:
 			const char *filename = get_usr_stack_entry(t->esp + 4);
 			unsigned init_size = get_usr_stack_entry(t->esp + 8);
-			printf("Creating %s with size %d", filename, init_size);
+			printf("Creating %s with size %d\n", filename, init_size);
 			create(filename, init_size);
 			break
 		
 		case SYS_REMOVE:
+			const char *filename = get_usr_stack_entry(t->esp + 4);
+			printf("Removing file: %s\n",filename);
+			remove(filename);
 			break;
 		
 		case SYS_OPEN:
+			const char *filename = get_usr_stack_entry(t->esp + 4);
+			printf("Opening file: %s\n", filename);
+			open(filename);
 		break;
 		
 		case SYS_FILESIZE:
+			int fd = get_usr_stack_entry(t->esp + 4);
+			printf("Getting filesize of filedescriptor: %d\n", fd);
+			filesize(fd);
 			break;
 		
 		case SYS_READ:
+			int fd = get_usr_stack_entry(t->esp + 4);
+			void* buf = get_usr_stack_entry(t->esp + 8);
+			unsigned size = get_usr_stack_entry(t->esp + 12);
+			printf("Reading %d bytes from %d to %d buffer\n", size, fd, buf);
+			read(fd, buf, size);
 			break;
 		
 		case SYS_WRITE:
+			int fd = get_usr_stack_entry(t->esp + 4);
+			void* buf = get_usr_stack_entry(t->esp + 8);
+			unsigned size = get_usr_stack_entry(t->esp + 12);
+			printf("Writing first %d bytes from \"%s\" into %d\n", size, buf, fd);
+			write(fd, buf, size);
 			break;
 		
 		case SYS_SEEK:
+			int fd = get_usr_stack_entry(t->esp + 4);
+			unsigned position = get_usr_stack_entry(t->esp + 8);
+			printf("Seeking for position %d in %d\n", position, fd);
+			seek(fd, position);
 			break;
 		
 		case SYS_TELL:
+			int fd = get_usr_stack_entry(t->esp + 4);
+			printf("Finding position of next byte to read in %d\n", fd);
+			tell(fd);
 			break;
 		
 		case SYS_CLOSE:
+			int fd = get_usr_stack_entry(t->esp + 4);
+			printf("Closing file %d\n", fd);
+			close(fd);
 			break;
 		
 		default:
