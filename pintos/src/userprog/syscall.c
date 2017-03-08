@@ -18,6 +18,9 @@ static int write(int fd, const void *buffer, unsigned size);
 static int seek(int fd, unsigned position);
 static unsigned tell(int fd);
 static void close(int fd);
+static int get_user(const uint8_t *uaddr);
+static bool put_user(uint8_t *udst, uint8_t byte)l
+
 
 /* Function to initialize syscall_handler to handle system call
  * interrupts.
@@ -27,6 +30,32 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
+
+/* Reads a byte at user virtual address UADDR.  
+	 UADDR must be below PHYS_BASE.   
+	 Returns the byte value if successful, -1 if a segfault   
+	 occurred. */
+static int
+get_user (const uint8_t *uaddr)
+{  
+	int result;  
+	asm ("movl $1f, %0; movzbl %1, %0; 1:"      
+			 : "=&a" (result) : "m" (*uaddr));
+	return result;
+}
+
+/* Writes BYTE to user address UDST.   
+	 UDST must be below PHYS_BASE.   
+	 Returns true if successful, false if a segfault occurred. */
+static bool
+put_user (uint8_t *udst, uint8_t byte)
+{  
+	int error_code;  
+	asm ("movl $1f, %0; movb %b2, %1; 1:"
+			 : "=&a" (error_code), "=m" (*udst) : "q" (byte));  
+			 return error_code != -1;
+}
+
 
 /* Function to retrieve a 4 byte entry starting at the given 
  * location. Used to retrieve a full entry from the user stack
@@ -98,7 +127,7 @@ syscall_handler (struct intr_frame *f)
 			const char *filename = get_usr_stack_entry(t->esp + 4);
 			printf("Opening file: %s\n", filename);
 			open(filename);
-		break;
+			break;
 		
 		case SYS_FILESIZE:
 			int fd = get_usr_stack_entry(t->esp + 4);
