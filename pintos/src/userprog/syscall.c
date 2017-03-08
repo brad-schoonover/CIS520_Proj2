@@ -185,7 +185,7 @@ halt(void)
 static void
 exit(int status)
 {
-	//TODO Implement exit system call
+	printf("Exiting with status %d\n", status);
 }
 
 static pid_t
