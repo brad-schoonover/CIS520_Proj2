@@ -392,5 +392,5 @@ tell(int fd)
 static void
 close(int fd)
 {
-	//TODO Implement close system call
+	return fd_close(fd);
 }
