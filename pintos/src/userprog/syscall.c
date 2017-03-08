@@ -351,14 +351,13 @@ static int
 write(int fd, const void *buffer, unsigned size)
 {
 	//Counter to keep track of the number of bytes written
-	int counter = 0;
-
 	char *tempbuff = (char*)buffer;
 	
 	//Handle writing to STDOUT
 	if(fd == 1)
 	{
-		int i, put_size;
+		int i, put_size, counter;
+		counter = 0;
 		for(i=0; i<size, i+=300)
 		{
 			put_size = min(300, size-i);
@@ -366,13 +365,16 @@ write(int fd, const void *buffer, unsigned size)
 			counter += put_size;
 			tempbuff += put_size;
 		}
+		return counter;
 	}
 	else
 	{
-		printf("Need to implement writing actual files\n");
-		counter = -1;
+		int result;
+		lock_acquire(file_lock);
+		result = file_write(fd_retrieve(fd), buffer, size);
+		lock_release(file_lock);
+		return result;
 	}
-	return counter;
 }
 
 static int
