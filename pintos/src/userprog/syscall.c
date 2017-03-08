@@ -233,7 +233,29 @@ read(int fd, void *buffer, unsigned size)
 static int
 write(int fd, const void *buffer, unsigned size)
 {
-	//TODO Implement write system call
+	//Counter to keep track of the number of bytes written
+	int counter = 0;
+
+	char *tempbuff = (char*)buffer;
+	
+	//Handle writing to STDOUT
+	if(fd == 1)
+	{
+		int i, put_size;
+		for(i=0; i<size, i+=300)
+		{
+			put_size = min(300, size-i);
+			putbuf(tempbuff, put_size);
+			counter += put_size;
+			tempbuff += put_size;
+		}
+	}
+	else
+	{
+		printf("Need to implement writing actual files\n");
+		counter = -1;
+	}
+	return counter;
 }
 
 static int
