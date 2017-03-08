@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt(void);
@@ -20,6 +21,8 @@ static unsigned tell(int fd);
 static void close(int fd);
 static int get_user(const uint8_t *uaddr);
 static bool put_user(uint8_t *udst, uint8_t byte)l
+static struct open_filedescriptor fdheader;
+
 
 
 /* Function to initialize syscall_handler to handle system call
@@ -221,7 +224,10 @@ open(const char* file)
 static int
 filesize(int fd)
 {
-	//TODO Implement filesize system call
+  struct file find_length;
+  
+
+	return file_length(find_length)
 }
 
 static int
