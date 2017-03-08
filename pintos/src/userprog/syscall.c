@@ -340,7 +340,11 @@ filesize(int fd)
 static int
 read(int fd, void *buffer, unsigned size)
 {
-	//TODO Implement read system call
+	int results;
+	lock_acquire(file_lock);
+	result = file_read(fd_retrieve(fd), buffer, size);
+	lock_release(file_lock);
+	return result;
 }
 
 static int
