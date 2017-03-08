@@ -324,7 +324,7 @@ remove(const char* file)
 static int
 open(const char* file)
 {
-	//TODO Implement open system call
+	return fd_open(file);
 }
 
 static int
