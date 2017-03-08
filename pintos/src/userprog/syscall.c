@@ -304,7 +304,11 @@ wait(pid_t pid)
 static bool
 create(const char *file, unsigned initialsize)
 {
-	//TODO Implement create system call
+	bool result;
+	lock_acquire(file_lock);
+	result = filesys_create(file, initialsize);
+	lock_release(file_lock);
+	return result;
 }
 
 static bool
