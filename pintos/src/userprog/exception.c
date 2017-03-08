@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/process.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -142,7 +143,20 @@ page_fault (struct intr_frame *f)
 
   /* Count page faults. */
   page_fault_cnt++;
+  
+  /*
+    Brad Schoonover's part, This is the if statement that
+    that I came in and got help for. This is what you (Dr. Andresen) showed me
+    and we walked through it.
+  */
 
+  if(!user)
+  {
+    f->eip = (void (*) (void)) f->eax;
+    f->eax = 0;
+    return;
+  }
+  
   /* Determine cause. */
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
@@ -156,6 +170,27 @@ page_fault (struct intr_frame *f)
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  kill (f);
-}
 
+  //proj 2 by brad
+ 
+  kill (f);
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
