@@ -314,7 +314,11 @@ create(const char *file, unsigned initialsize)
 static bool
 remove(const char* file)
 {
-	//TODO Implement remove system call
+	bool result;
+	lock_acquire(file_lock);
+	result = filesys_remove(file);
+	lock_release(file_lock);
+	return result;
 }
 
 static int
