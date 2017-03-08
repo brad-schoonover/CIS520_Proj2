@@ -330,10 +330,11 @@ open(const char* file)
 static int
 filesize(int fd)
 {
-  struct file find_length;
-  
-
-	return file_length(find_length)
+  int result;
+	lock_acquire(file_lock);
+	result = file_length(fd_retrieve(fd));
+	lock_release(file_lock);
+	return result;
 }
 
 static int
