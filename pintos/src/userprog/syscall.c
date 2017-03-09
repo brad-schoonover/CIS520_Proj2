@@ -377,10 +377,12 @@ write(int fd, const void *buffer, unsigned size)
 	}
 }
 
-static int
+static void
 seek(int fd, unsigned position)
 {
-	//TODO Implement seek system call
+	lock_acquire(file_lock);
+	file_seek(fd_retrieve(fd), position);
+	lock_release(file_lock);
 }
 
 static unsigned
