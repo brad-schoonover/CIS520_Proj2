@@ -388,7 +388,11 @@ seek(int fd, unsigned position)
 static unsigned
 tell(int fd)
 {
-	//TODO Implement tell system call
+	unsigned result;
+	lock_acquire(file_lock);
+	result = (unsigned) file_tell(fd_retrieve(fd));
+	lock_release(file_lock);
+	return result;
 }
 
 static void
