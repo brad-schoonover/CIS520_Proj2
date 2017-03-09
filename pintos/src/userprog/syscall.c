@@ -5,26 +5,27 @@
 #include "threads/thread.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
-static void halt(void);
-static void exit(int status);
-static pid_t exec(const char *cmd_line);
-static int wait(pid_t pid);
-static bool create(const char *file, unsigned initialsize);
-static bool remove(const char* file);
-static int open(const char* file);
-static int filesize(int fd);
-static int read(int fd, void *buffer, unsigned size);
-static int write(int fd, const void *buffer, unsigned size);
-static int seek(int fd, unsigned position);
-static unsigned tell(int fd);
-static void close(int fd);
-static int get_user(const uint8_t *uaddr);
-static bool put_user(uint8_t *udst, uint8_t byte)l
+static void sys_halt(void);
+static void sys_exit(int status);
+static pid_t sys_exec(const char *cmd_line);
+static int sys_wait(pid_t pid);
+static bool sys_create(const char *file, unsigned initialsize);
+static bool sys_remove(const char* file);
+static int sys_open(const char* file);
+static int sys_filesize(int fd);
+static int sys_read(int fd, void *buffer, unsigned size);
+static int sys_write(int fd, const void *buffer, unsigned size);
+static void sys_seek(int fd, unsigned position);
+static unsigned sys_tell(int fd);
+static void sys_close(int fd);
+static int sys_get_user(const uint8_t *uaddr);
+static bool sys_put_user(uint8_t *udst, uint8_t byte);
 
-static struct lock file_lock;
-static struct lock list_lock;
+static struct lock *file_lock;
+static struct lock *list_lock;
 static struct open_filedescriptor fdheader;
 static int next_desc = 3;
 
@@ -40,9 +41,9 @@ syscall_init (void)
 {
 	lock_init(file_lock);
 	lock_init(list_lock);
-	fdheader->fd = -1;
-	fdheader->file_pointer = NULL;
-	fdheader->next = NULL;
+	(&fdheader)->fd = -1;
+	(&fdheader)->file_pointer = NULL;
+	(&fdheader)->next = NULL;
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -72,7 +73,7 @@ fd_open(const char *filename)
 
 	//Add new file to the list of open file descriptors
 	lock_acquire(list_lock);
-	temp = fdheader;
+	temp = &fdheader;
 	while(temp->next != NULL)
 	{
 		temp = temp->next;
@@ -89,13 +90,13 @@ static struct file*
 fd_retrieve(int fd)
 {
 	lock_acquire(list_lock);
-	struct open_filedescriptor *temp = fdheader;
+	struct open_filedescriptor *temp = &fdheader;
 	struct open_filedescriptor *result = NULL;
 	while(temp != NULL)
 	{
 		if(temp->fd == fd)
 		{
-			result = temp->file;
+			result = temp->file_pointer;
 			break;
 		}
 		temp = temp->next;
@@ -113,7 +114,7 @@ fd_close(int fd)
 	bool result;
 	lock_acquire(list_lock);
 	lock_acquire(file_lock);
-	struct open_filedescriptor *temp = fdheader;
+	struct open_filedescriptor *temp = &fdheader;
 	struct open_filedescriptor *remove;
 	while(temp->next != NULL)
 	{
@@ -166,7 +167,7 @@ put_user (uint8_t *udst, uint8_t byte)
 static int get_usr_stack_entry(void *entry)
 {
 	int result = 0;
-	for(int i = 0; i<4, i++)
+	for(int i = 0; i<4; i++)
 	{
 		result << 8;
 		result += get_user(entry+i);
@@ -186,123 +187,128 @@ syscall_handler (struct intr_frame *f)
   printf ("system call!\n");
 	int call_number = get_user(f->esp+3);
 	printf("System call number: %d\n", call_number);
+	const char *filename;
+	unsigned size;
+	int fd;
+	void* buf;
 
 	switch(call_number)
 	{
-		case SYS_HALT:
-			halt();
+		case SYS_HALT:;
+			sys_halt();
 			break;
 		
-		case SYS_EXIT:
-			int status = get_usr_stack_entry(t->esp + 4)
+		case SYS_EXIT:;
+			int status;
+			status = get_usr_stack_entry(f->esp + 4);
 			printf("Exit status: %d\n", status);
-			exit(status);
+			sys_exit(status);
 			break;
 
-		case SYS_EXEC:
-			char *commandline = get_usr_stack_entry(t->esp + 4);
+		case SYS_EXEC:;
+			char *commandline = get_usr_stack_entry(f->esp + 4);
 			printf("Command line ptr: %s\n",commandline);
-			exec(commandline);
+			sys_exec(commandline);
 			break;
 		
-		case SYS_WAIT:
-			pid_t wait_on = get_usr_stack_entry(t->esp + 4);
+		case SYS_WAIT:;
+			pid_t wait_on = get_usr_stack_entry(f->esp + 4);
 			printf("Waiting on thread: %d\n",wait_on);
-			wait(wait_on);
+			sys_wait(wait_on);
 			break;
 		
-		case SYS_CREATE:
-			const char *filename = get_usr_stack_entry(t->esp + 4);
-			unsigned init_size = get_usr_stack_entry(t->esp + 8);
+		case SYS_CREATE:;
+			filename = get_usr_stack_entry(f->esp + 4);
+			unsigned init_size = get_usr_stack_entry(f->esp + 8);
 			printf("Creating %s with size %d\n", filename, init_size);
-			create(filename, init_size);
-			break
+			sys_create(filename, init_size);
+			break;
 		
-		case SYS_REMOVE:
-			const char *filename = get_usr_stack_entry(t->esp + 4);
+		case SYS_REMOVE:;
+			filename = get_usr_stack_entry(f->esp + 4);
 			printf("Removing file: %s\n",filename);
-			remove(filename);
+			sys_remove(filename);
 			break;
 		
-		case SYS_OPEN:
-			const char *filename = get_usr_stack_entry(t->esp + 4);
+		case SYS_OPEN:;
+			filename = get_usr_stack_entry(f->esp + 4);
 			printf("Opening file: %s\n", filename);
-			open(filename);
+			sys_open(filename);
 			break;
 		
-		case SYS_FILESIZE:
-			int fd = get_usr_stack_entry(t->esp + 4);
+		case SYS_FILESIZE:;
+			fd = get_usr_stack_entry(f->esp + 4);
 			printf("Getting filesize of filedescriptor: %d\n", fd);
-			filesize(fd);
+			sys_filesize(fd);
 			break;
 		
-		case SYS_READ:
-			int fd = get_usr_stack_entry(t->esp + 4);
-			void* buf = get_usr_stack_entry(t->esp + 8);
-			unsigned size = get_usr_stack_entry(t->esp + 12);
+		case SYS_READ:;
+			fd = get_usr_stack_entry(f->esp + 4);
+			buf = get_usr_stack_entry(f->esp + 8);
+			size = get_usr_stack_entry(f->esp + 12);
 			printf("Reading %d bytes from %d to %d buffer\n", size, fd, buf);
-			read(fd, buf, size);
+			sys_read(fd, buf, size);
 			break;
 		
-		case SYS_WRITE:
-			int fd = get_usr_stack_entry(t->esp + 4);
-			void* buf = get_usr_stack_entry(t->esp + 8);
-			unsigned size = get_usr_stack_entry(t->esp + 12);
+		case SYS_WRITE:;
+			fd = get_usr_stack_entry(f->esp + 4);
+			buf = get_usr_stack_entry(f->esp + 8);
+			size = get_usr_stack_entry(f->esp + 12);
 			printf("Writing first %d bytes from \"%s\" into %d\n", size, buf, fd);
-			write(fd, buf, size);
+			sys_write(fd, buf, size);
 			break;
 		
-		case SYS_SEEK:
-			int fd = get_usr_stack_entry(t->esp + 4);
-			unsigned position = get_usr_stack_entry(t->esp + 8);
+		case SYS_SEEK:;
+			fd = get_usr_stack_entry(f->esp + 4);
+			unsigned position = get_usr_stack_entry(f->esp + 8);
 			printf("Seeking for position %d in %d\n", position, fd);
-			seek(fd, position);
+			sys_seek(fd, position);
 			break;
 		
-		case SYS_TELL:
-			int fd = get_usr_stack_entry(t->esp + 4);
+		case SYS_TELL:;
+			fd = get_usr_stack_entry(f->esp + 4);
 			printf("Finding position of next byte to read in %d\n", fd);
-			tell(fd);
+			sys_tell(fd);
 			break;
 		
-		case SYS_CLOSE:
-			int fd = get_usr_stack_entry(t->esp + 4);
+		case SYS_CLOSE:;
+			fd = get_usr_stack_entry(f->esp + 4);
 			printf("Closing file %d\n", fd);
-			close(fd);
+			sys_close(fd);
 			break;
 		
-		default:
+		default:;
   		thread_exit ();
 		  break;
 	}
 }
 
 static void
-halt(void)
+sys_halt(void)
 {
 	//TODO Implement halt system call
 }
 
 static void
-exit(int status)
+sys_exit(int status)
 {
 	printf("Exiting with status %d\n", status);
 }
 
 static pid_t
-exec(const char *cmd_line)
+sys_exec(const char *cmd_line)
 {
 	//TODO Implement exec system call
 }
 
 static int
-wait(pid_t pid)
+sys_wait(pid_t pid)
 {
 	//TODO Implement wait system call
 }
 
 static bool
-create(const char *file, unsigned initialsize)
+sys_create(const char *file, unsigned initialsize)
 {
 	bool result;
 	lock_acquire(file_lock);
@@ -312,7 +318,7 @@ create(const char *file, unsigned initialsize)
 }
 
 static bool
-remove(const char* file)
+sys_remove(const char* file)
 {
 	bool result;
 	lock_acquire(file_lock);
@@ -322,13 +328,13 @@ remove(const char* file)
 }
 
 static int
-open(const char* file)
+sys_open(const char* file)
 {
 	return fd_open(file);
 }
 
 static int
-filesize(int fd)
+sys_filesize(int fd)
 {
   int result;
 	lock_acquire(file_lock);
@@ -338,9 +344,9 @@ filesize(int fd)
 }
 
 static int
-read(int fd, void *buffer, unsigned size)
+sys_read(int fd, void *buffer, unsigned size)
 {
-	int results;
+	int result;
 	lock_acquire(file_lock);
 	result = file_read(fd_retrieve(fd), buffer, size);
 	lock_release(file_lock);
@@ -348,7 +354,7 @@ read(int fd, void *buffer, unsigned size)
 }
 
 static int
-write(int fd, const void *buffer, unsigned size)
+sys_write(int fd, const void *buffer, unsigned size)
 {
 	//Counter to keep track of the number of bytes written
 	char *tempbuff = (char*)buffer;
@@ -358,7 +364,7 @@ write(int fd, const void *buffer, unsigned size)
 	{
 		int i, put_size, counter;
 		counter = 0;
-		for(i=0; i<size, i+=300)
+		for(i=0; i<size; i+=300)
 		{
 			put_size = min(300, size-i);
 			putbuf(tempbuff, put_size);
@@ -378,7 +384,7 @@ write(int fd, const void *buffer, unsigned size)
 }
 
 static void
-seek(int fd, unsigned position)
+sys_seek(int fd, unsigned position)
 {
 	lock_acquire(file_lock);
 	file_seek(fd_retrieve(fd), position);
@@ -386,7 +392,7 @@ seek(int fd, unsigned position)
 }
 
 static unsigned
-tell(int fd)
+sys_tell(int fd)
 {
 	unsigned result;
 	lock_acquire(file_lock);
@@ -396,7 +402,7 @@ tell(int fd)
 }
 
 static void
-close(int fd)
+sys_close(int fd)
 {
 	return fd_close(fd);
 }
