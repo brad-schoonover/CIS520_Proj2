@@ -44,7 +44,7 @@ syscall_init (void)
 	(&fdheader)->fd = -1;
 	(&fdheader)->file_pointer = NULL;
 	(&fdheader)->next = NULL;
-  intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  	intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 /* Function to open a new file and add it to the list of open file
@@ -278,14 +278,15 @@ syscall_handler (struct intr_frame *f)
 			break;
 		
 		default:;
-  		thread_exit ();
-		  break;
+  		    thread_exit ();
+		    break;
 	}
 }
 
 static void
 sys_halt(void)
 {
+	shutdown_power_off();
 	//TODO Implement halt system call
 }
 
@@ -293,17 +294,28 @@ static void
 sys_exit(int status)
 {
 	printf("Exiting with status %d\n", status);
+	thread_exit();
 }
 
 static pid_t
 sys_exec(const char *cmd_line)
 {
+	pid_t parent = process_execute(cmd_line);
+	if(parent > 0)
+	{
+		return parent;
+	}
+	else
+	{
+		return TID_ERROR;
+	}
 	//TODO Implement exec system call
 }
 
 static int
 sys_wait(pid_t pid)
 {
+    
 	//TODO Implement wait system call
 }
 
@@ -336,7 +348,7 @@ sys_open(const char* file)
 static int
 sys_filesize(int fd)
 {
-  int result;
+  	int result;
 	lock_acquire(file_lock);
 	result = file_length(fd_retrieve(fd));
 	lock_release(file_lock);
