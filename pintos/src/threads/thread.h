@@ -107,9 +107,6 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-int  get_user(const uint8_t *uaddr);
-bool put_user(uint8_t *usdt byte);
-
 void thread_init (void);
 void thread_start (void);
 
